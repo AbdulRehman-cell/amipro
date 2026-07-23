@@ -1,0 +1,60 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "20.15.1"
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install server dependencies
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Install client dependencies
+        run: npm --prefix client ci --no-audit --no-fund || npm --prefix client install --no-audit --no-fund
+
+      - name: Lint (if configured)
+        run: npm run lint --if-present
+
+      - name: Run tests (if configured)
+        run: npm test --if-present
+
+      - name: Build client
+        run: npm run build
+
+      - name: Build Docker image (smoke test only, not pushed)
+        run: docker build -t amipro:ci-${{ github.sha }} .
+
+  deploy:
+    name: Deploy to Render
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Deploy Hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "ERROR: RENDER_DEPLOY_HOOK_URL secret is not set." >&2
+            exit 1
+          fi
+          curl -f -X POST "$RENDER_DEPLOY_HOOK_URL"

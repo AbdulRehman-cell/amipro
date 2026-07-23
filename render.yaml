@@ -1,0 +1,29 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# This is the recommended deploy path for this repo (native Node runtime).
+
+services:
+  - type: web
+    name: amipro
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: NODE_VERSION
+        value: 20.15.1
+
+# Optional managed database. Uncomment to have Render provision Postgres.
+# This app uses MongoDB (Mongoose) — Render does not offer managed MongoDB,
+# so use MongoDB Atlas free tier and set MONGO_URI above instead.

@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: amipro:local
+    container_name: amipro-app
+    restart: unless-stopped
+    ports:
+      - "10000:10000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 10000
+      MONGO_URI: mongodb://mongo:27017/amipro
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - amipro-net
+
+  mongo:
+    image: mongo:7.0.12
+    container_name: amipro-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: amipro
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - amipro-net
+
+volumes:
+  mongo-data:
+
+networks:
+  amipro-net:
+    driver: bridge
